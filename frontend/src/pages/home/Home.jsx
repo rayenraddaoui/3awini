@@ -25,7 +25,6 @@ export default function Home() {
             <div className="mt-8 flex flex-wrap gap-4">
               <Link to="/animals"><Button className="px-6 py-4 text-base">demande un service animal</Button></Link>
               <Link to="/services"><Button variant="secondary" className="px-6 py-4 text-base text-primary">Voir les techniciens disponible</Button></Link>
-              <Link to="/dashboard/admin"><Button variant="outline" className="px-6 py-4 text-base">Espace admin</Button></Link>
             </div>
 
             <div className="mt-10 grid gap-4 sm:grid-cols-3">
@@ -69,13 +68,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="rounded-[2rem] border p-6 text-white shadow-xl" style={{ borderColor: colors.borders.border, background: `linear-gradient(135deg, ${colors.primary.main}, ${colors.secondary.main})` }}>
-              <p className="text-xs font-black uppercase tracking-[0.24em]" style={{ color: 'rgba(255,255,255,0.80)' }}>Centre de contrôle</p>
-              <h2 className="mt-2 text-2xl font-black">L'admin supervise tout</h2>
-              <p className="mt-4 text-sm leading-7" style={{ color: 'rgba(255,255,255,0.90)' }}>
-                Validation des comptes, suivi des clients, validation des techniciens et contrôle des demandes de contact.
-              </p>
-            </div>
+            
           </div>
         </div>
       </section>

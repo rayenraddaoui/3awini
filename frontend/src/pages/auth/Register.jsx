@@ -9,24 +9,27 @@ import { useAuth } from '../../hooks/useAuth.jsx'
 export default function Register(){
   const colors = palette.colors
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { register } = useAuth()
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState('client')
+  const [error, setError] = useState('')
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!email || !password || !name) {
-      alert('Veuillez remplir le nom, l\'email et le mot de passe.')
+    setError('')
+
+    const result = register({ name, email, password, role })
+    if (!result.ok) {
+      setError(result.message || 'Inscription impossible.')
       return
     }
 
-    const newUser = { name, email, role }
-    login(newUser)
-    if (role === 'admin') navigate('/dashboard/admin')
-    else if (role === 'client') navigate('/dashboard/client')
+    const nextRole = result.user?.role || role
+    if (nextRole === 'admin') navigate('/dashboard/admin')
+    else if (nextRole === 'client') navigate('/dashboard/client')
     else navigate('/dashboard/technician')
   }
   return (
@@ -43,6 +46,11 @@ export default function Register(){
             <option value="admin">Admin</option>
           </select>
           <Input placeholder="Mot de passe" type="password" value={password} onChange={(e)=>setPassword(e.target.value)} />
+          {error && (
+            <div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: colors.status.errorLight, color: colors.text.primary, backgroundColor: colors.status.errorLight }}>
+              {error}
+            </div>
+          )}
           <Button type="submit" className="w-full py-3">Créer un compte</Button>
         </form>
       </div>

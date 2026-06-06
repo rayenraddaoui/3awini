@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from 'react'
 import AppLayout from '../../layouts/AppLayout'
 import Input from '../../components/common/Input'
 import Button from '../../components/common/Button'
@@ -6,30 +6,29 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth.jsx'
 import palette from '../../theme/palette'
 
-
 export default function Login(){
   const navigate = useNavigate()
   const { login } = useAuth()
   const colors = palette.colors
+  const [role, setRole] = useState('admin')
   const [email, setEmail] = useState('admin@3awini.local')
   const [password, setPassword] = useState('admin123')
-  const [role, setRole] = useState('admin')
+  const [error, setError] = useState('')
 
   const handleSubmit = (event) => {
     event.preventDefault()
+    setError('')
 
-    const nextUser = {
-      name: email.split('@')[0] || role,
-      email,
-      role,
+    const result = login({ email, password })
+    if (!result.ok) {
+      setError(result.message || 'Connexion impossible.')
+      return
     }
 
-    if (email && password) {
-      login(nextUser)
-      if (role === 'admin') navigate('/dashboard/admin')
-      else if (role === 'client') navigate('/dashboard/client')
-      else navigate('/dashboard/technician')
-    }
+    const nextRole = result.user?.role || role
+    if (nextRole === 'admin') navigate('/dashboard/admin')
+    else if (nextRole === 'client') navigate('/dashboard/client')
+    else navigate('/dashboard/technician')
   }
 
   return (
@@ -40,7 +39,20 @@ export default function Login(){
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <select
             value={role}
-            onChange={(event) => setRole(event.target.value)}
+            onChange={(event) => {
+              const newRole = event.target.value
+              setRole(newRole)
+              if (newRole === 'admin') {
+                setEmail('admin@3awini.local')
+                setPassword('admin123')
+              } else if (newRole === 'technician') {
+                setEmail('tech@3awini.local')
+                setPassword('tech123')
+              } else {
+                setEmail('client@3awini.local')
+                setPassword('client123')
+              }
+            }}
             className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition"
             style={{ borderColor: colors.borders.input, backgroundColor: colors.surface, color: colors.text.primary }}
           >
@@ -50,6 +62,11 @@ export default function Login(){
           </select>
           <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" />
           <Input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mot de passe" type="password" />
+          {error && (
+            <div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: colors.status.errorLight, color: colors.text.primary, backgroundColor: colors.status.errorLight }}>
+              {error}
+            </div>
+          )}
           <Button type="submit" className="w-full py-3">Connexion</Button>
         </form>
         <p className="mt-4 text-sm" style={{ color: colors.text.secondary }}>Pas encore de compte ? <Link to="/register" className="text-primary font-bold">Créer un compte</Link></p>
@@ -57,3 +74,4 @@ export default function Login(){
     </AppLayout>
   )
 }
+

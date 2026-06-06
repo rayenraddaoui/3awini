@@ -8,7 +8,36 @@ export default function Navbar() {
   const [open, setOpen] = useState(false)
   const { user, logout } = useAuth()
   const colors = palette.colors
-  const isAdmin = user?.role === 'admin'
+  const role = user?.role || 'guest'
+  const navItemsByRole = {
+    guest: [
+      { to: '/', label: 'Accueil' },
+      { to: '/animals', label: 'Animaux' },
+      { to: '/services', label: 'Services' },
+      { to: '/about', label: 'À propos' },
+      { to: '/contact', label: 'Contact' },
+    ],
+    client: [
+      { to: '/', label: 'Accueil' },
+      { to: '/animals', label: 'Animaux' },
+      { to: '/services', label: 'Services' },
+      { to: '/dashboard/client', label: 'Dashboard' },
+    ],
+    technician: [
+      { to: '/', label: 'Accueil' },
+      { to: '/dashboard/technician', label: 'Dashboard' },
+      { to: '/request-work?type=metier', label: 'Demande métier' },
+      { to: '/request-work?type=animal', label: 'Demande animalier' },
+    ],
+    admin: [
+      { to: '/dashboard/admin', label: 'Admin' },
+      { to: '/dashboard/admin/join-requests', label: 'Inscriptions' },
+      { to: '/dashboard/admin/work-requests', label: 'Demandes' },
+      { to: '/dashboard/admin/profiles', label: 'Profils' },
+    ],
+  }
+  const navItems = navItemsByRole[role] || navItemsByRole.guest
+  const showSearch = role === 'guest' || role === 'client'
 
   const closeMenu = () => setOpen(false)
 
@@ -55,51 +84,45 @@ export default function Navbar() {
           <span>awini</span>
         </Link>
 
-        {isAdmin ? (
-          <div className="flex items-center gap-3">
+        <>
+          <div className="md:hidden">
+            <button
+              onClick={() => setOpen(!open)}
+              aria-label="menu"
+              className="rounded-xl p-2 shadow-sm transition"
+              style={{ borderColor: colors.borders.border, backgroundColor: colors.surface }}
+            >
+              <div className="space-y-1.5">
+                <span className={`block h-0.5 w-6 rounded transition-all ${open ? 'translate-y-2 rotate-45' : ''}`} style={{ backgroundColor: colors.primary.main }}></span>
+                <span className={`block h-0.5 w-6 rounded transition-all ${open ? 'opacity-0' : ''}`} style={{ backgroundColor: colors.primary.main }}></span>
+                <span className={`block h-0.5 w-6 rounded transition-all ${open ? '-translate-y-2 -rotate-45' : ''}`} style={{ backgroundColor: colors.primary.main }}></span>
+              </div>
+            </button>
+          </div>
+
+          <div className="hidden w-full items-center justify-end gap-6 md:flex">
+            {showSearch && (
+              <div className="mr-2 w-64"><SearchBar /></div>
+            )}
+            {navItems.map((item) => (
+              <Link key={item.to} to={item.to} className="font-semibold transition-colors hover:opacity-80" style={{ color: colors.text.secondary }}>
+                {item.label}
+              </Link>
+            ))}
             {user && profileLink}
             {authButton}
           </div>
-        ) : (
-          <>
-            <div className="md:hidden">
-              <button
-                onClick={() => setOpen(!open)}
-                aria-label="menu"
-                className="rounded-xl p-2 shadow-sm transition"
-                style={{ borderColor: colors.borders.border, backgroundColor: colors.surface }}
-              >
-                <div className="space-y-1.5">
-                  <span className={`block h-0.5 w-6 rounded transition-all ${open ? 'translate-y-2 rotate-45' : ''}`} style={{ backgroundColor: colors.primary.main }}></span>
-                  <span className={`block h-0.5 w-6 rounded transition-all ${open ? 'opacity-0' : ''}`} style={{ backgroundColor: colors.primary.main }}></span>
-                  <span className={`block h-0.5 w-6 rounded transition-all ${open ? '-translate-y-2 -rotate-45' : ''}`} style={{ backgroundColor: colors.primary.main }}></span>
-                </div>
-              </button>
-            </div>
-
-            <div className="hidden w-full items-center justify-end gap-6 md:flex">
-              <div className="mr-2 w-64"><SearchBar /></div>
-              <Link to="/" className="font-semibold transition-colors hover:opacity-80" style={{ color: colors.text.secondary }}>Accueil</Link>
-              <Link to="/animals" className="font-semibold transition-colors hover:opacity-80" style={{ color: colors.text.secondary }}>Animaux</Link>
-              <Link to="/services" className="font-semibold transition-colors hover:opacity-80" style={{ color: colors.text.secondary }}>Services</Link>
-              <Link to="/about" className="font-semibold transition-colors hover:opacity-80" style={{ color: colors.text.secondary }}>À propos</Link>
-              <Link to="/contact" className="font-semibold transition-colors hover:opacity-80" style={{ color: colors.text.secondary }}>Contact</Link>
-              {user && profileLink}
-              {authButton}
-            </div>
-          </>
-        )}
+        </>
       </div>
 
-      {!isAdmin && open && (
+      {open && (
         <div className="md:hidden animate-in slide-in-from-top backdrop-blur duration-300" style={{ borderTopColor: colors.borders.border, backgroundColor: 'rgba(255,255,255,0.95)' }}>
           <div className="flex flex-col gap-4 px-4 py-6">
-            <Link to="/" onClick={closeMenu} className="py-2 font-bold transition-colors hover:opacity-80" style={{ color: colors.text.primary }}>Accueil</Link>
-            <Link to="/animals" onClick={closeMenu} className="py-2 font-bold transition-colors hover:opacity-80" style={{ color: colors.text.primary }}>Animaux</Link>
-            <Link to="/services" onClick={closeMenu} className="py-2 font-bold transition-colors hover:opacity-80" style={{ color: colors.text.primary }}>Services</Link>
-            <Link to="/about" onClick={closeMenu} className="py-2 font-bold transition-colors hover:opacity-80" style={{ color: colors.text.primary }}>À propos</Link>
-            <Link to="/contact" onClick={closeMenu} className="py-2 font-bold transition-colors hover:opacity-80" style={{ color: colors.text.primary }}>Contact</Link>
-            <Link to="/dashboard/admin" onClick={closeMenu} className="py-2 font-bold transition-colors hover:opacity-80" style={{ color: colors.text.primary }}>Admin</Link>
+            {navItems.map((item) => (
+              <Link key={item.to} to={item.to} onClick={closeMenu} className="py-2 font-bold transition-colors hover:opacity-80" style={{ color: colors.text.primary }}>
+                {item.label}
+              </Link>
+            ))}
             <div className="border-t pt-4" style={{ borderTopColor: colors.borders.border }}>
               {user ? (
                 <div className="flex flex-col gap-3">

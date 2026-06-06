@@ -14,6 +14,7 @@ import AdminWorkRequests from '../pages/dashboard/admin/AdminWorkRequests'
 import AdminProfiles from '../pages/dashboard/admin/AdminProfiles'
 import AdminJoinRequests from '../pages/dashboard/admin/AdminJoinRequests'
 import Profile from '../pages/profile/Profile'
+import ProfileEdit from '../pages/profile/ProfileEdit'
 import NotFound from '../pages/NotFound'
 import About from '../pages/About'
 import Contact from '../pages/Contact'
@@ -25,7 +26,7 @@ import RequestWork from '../pages/requests/RequestWork'
 export default function AppRoutes(){
   const { user } = useAuth()
 
-  const resolveRootRoute = () => {
+  const resolveDashboardRoute = () => {
     if (!user) {
       return <Navigate to="/login" replace />
     }
@@ -39,7 +40,7 @@ export default function AppRoutes(){
 
   return (
     <Routes>
-      <Route path="/" element={resolveRootRoute()} />
+      <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login/>} />
       <Route path="/register" element={<Register />} />
       <Route
@@ -66,7 +67,7 @@ export default function AppRoutes(){
           </ProtectedRoute>
         }
       />
-      <Route path="/dashboard" element={<Navigate to="/dashboard/admin" replace/>} />
+      <Route path="/dashboard" element={resolveDashboardRoute()} />
       <Route
         path="/dashboard/admin"
         element={
@@ -128,6 +129,14 @@ export default function AppRoutes(){
         element={
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile/edit"
+        element={
+          <ProtectedRoute>
+            <ProfileEdit />
           </ProtectedRoute>
         }
       />
