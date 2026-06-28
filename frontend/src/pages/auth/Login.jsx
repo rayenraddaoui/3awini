@@ -1,77 +1,155 @@
-﻿import React, { useState } from 'react'
-import AppLayout from '../../layouts/AppLayout'
-import Input from '../../components/common/Input'
-import Button from '../../components/common/Button'
-import { useNavigate, Link } from 'react-router-dom'
-import { useAuth } from '../../hooks/useAuth.jsx'
-import palette from '../../theme/palette'
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import AppLayout from "../../layouts/AppLayout";
+import Input from "../../components/common/Input";
+import Button from "../../components/common/Button";
+import { useAuth } from "../../hooks/useAuth";
+import palette from "../../theme/palette";
 
-export default function Login(){
-  const navigate = useNavigate()
-  const { login } = useAuth()
-  const colors = palette.colors
-  const [role, setRole] = useState('admin')
-  const [email, setEmail] = useState('admin@3awini.local')
-  const [password, setPassword] = useState('admin123')
-  const [error, setError] = useState('')
+export default function Login() {
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleSubmit = (event) => {
-    event.preventDefault()
-    setError('')
+  const { login, loading } = useAuth();
 
-    const result = login({ email, password })
+  const colors = palette.colors;
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  useEffect(() => {
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message);
+    }
+  }, [location]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    setError("");
+
+    const result = await login({
+      email,
+      password,
+    });
+
     if (!result.ok) {
-      setError(result.message || 'Connexion impossible.')
-      return
+      setError(result.message || "Email ou mot de passe incorrect.");
+      return;
     }
 
-    const nextRole = result.user?.role || role
-    if (nextRole === 'admin') navigate('/dashboard/admin')
-    else if (nextRole === 'client') navigate('/dashboard/client')
-    else navigate('/dashboard/technician')
-  }
+    switch (result.user.role) {
+      case "admin":
+        navigate("/dashboard/admin");
+        break;
+
+      case "client":
+        navigate("/dashboard/client");
+        break;
+
+      case "technicien":
+        navigate("/dashboard/technicien");
+        break;
+
+      default:
+        navigate("/");
+    }
+  };
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-md rounded-[2rem] border p-8 shadow-sm2" style={{ backgroundColor: colors.surface, borderColor: colors.borders.border }}>
-        <h2 className="text-2xl font-black" style={{ color: colors.text.primary }}>Se connecter</h2>
-        <p className="mt-2 text-sm leading-6" style={{ color: colors.text.secondary }}>Un seul espace de connexion pour le client, le technicien et l’admin.</p>
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <select
-            value={role}
-            onChange={(event) => {
-              const newRole = event.target.value
-              setRole(newRole)
-              if (newRole === 'admin') {
-                setEmail('admin@3awini.local')
-                setPassword('admin123')
-              } else if (newRole === 'technician') {
-                setEmail('tech@3awini.local')
-                setPassword('tech123')
-              } else {
-                setEmail('client@3awini.local')
-                setPassword('client123')
-              }
-            }}
-            className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition"
-            style={{ borderColor: colors.borders.input, backgroundColor: colors.surface, color: colors.text.primary }}
-          >
-            <option value="client">Client</option>
-            <option value="technician">Technicien</option>
-            <option value="admin">Admin</option>
-          </select>
-          <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" />
-          <Input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mot de passe" type="password" />
+      <div
+        className="mx-auto max-w-md rounded-[2rem] border p-8 shadow-sm2"
+        style={{
+          backgroundColor: colors.surface,
+          borderColor: colors.borders.border,
+        }}
+      >
+        <h2
+          className="text-2xl font-black"
+          style={{ color: colors.text.primary }}
+        >
+          Connexion
+        </h2>
+
+        <p
+          className="mt-2 text-sm"
+          style={{ color: colors.text.secondary }}
+        >
+          Connectez-vous à votre compte 3awini.
+        </p>
+
+        <form
+          className="mt-6 space-y-5"
+          onSubmit={handleSubmit}
+        >
+          <Input
+            type="email"
+            placeholder="Adresse email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+
+          <Input
+            type="password"
+            placeholder="Mot de passe"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          {successMessage && (
+            <div
+              className="rounded-xl px-4 py-3 text-sm"
+              style={{
+                backgroundColor: colors.status.successLight,
+                color: colors.status.successDark,
+              }}
+            >
+              {successMessage}
+            </div>
+          )}
+
           {error && (
-            <div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: colors.status.errorLight, color: colors.text.primary, backgroundColor: colors.status.errorLight }}>
+            <div
+              className="rounded-xl px-4 py-3 text-sm"
+              style={{
+                backgroundColor: colors.status.errorLight,
+                color: colors.status.errorDark,
+              }}
+            >
               {error}
             </div>
           )}
-          <Button type="submit" className="w-full py-3">Connexion</Button>
+
+          <Button
+            type="submit"
+            className="w-full py-3"
+            disabled={loading}
+          >
+            {loading ? "Connexion..." : "Se connecter"}
+          </Button>
         </form>
-        <p className="mt-4 text-sm" style={{ color: colors.text.secondary }}>Pas encore de compte ? <Link to="/register" className="text-primary font-bold">Créer un compte</Link></p>
+
+        <div className="mt-6 text-center">
+          <p
+            className="text-sm"
+            style={{ color: colors.text.secondary }}
+          >
+            Vous n'avez pas encore de compte ?
+          </p>
+
+          <Link
+            to="/register"
+            className="mt-2 inline-block font-bold"
+            style={{ color: colors.primary.main }}
+          >
+            Créer un compte
+          </Link>
+        </div>
       </div>
     </AppLayout>
-  )
+  );
 }
-

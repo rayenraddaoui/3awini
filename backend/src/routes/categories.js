@@ -1,20 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../config/supabase');
+const supabase = require('../config/supabase');
 
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM categories ORDER BY id'
-    );
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('id', { ascending: true });
 
-    res.json(result.rows);
+    if (error) throw error;
+
+    res.json(data);
   } catch (error) {
     console.error(error);
     res.status(500).json({
       erreur: 'Erreur serveur'
     });
   }
+  
 });
 
 module.exports = router;

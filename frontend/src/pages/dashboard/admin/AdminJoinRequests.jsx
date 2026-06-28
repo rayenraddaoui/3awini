@@ -1,120 +1,102 @@
-import React, { useMemo, useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import DashboardLayout from '../../../layouts/DashboardLayout'
 import palette from '../../../theme/palette'
 import { Link } from 'react-router-dom'
-import Modal from '../../../components/common/Modal'
-// Local join requests (moved from src/api/mockData.js)
-const mockJoinRequests = [
-  { id: 1, company: 'Entreprise Azur', applicant: 'Khaled', email: 'khaled@azur.tn', phone: '22 333 444', meta: 'Demande: Employer • Tunis', details: ['Motif: Recrutement personnel', 'Taille: 12 employés'], status: 'En attente' },
-  { id: 2, company: 'SARL Olive', applicant: 'Meriem', email: 'meriem@olive.tn', phone: '24 555 666', meta: 'Demande: Employer • Sfax', details: ['Motif: Service ponctuel', 'Taille: 4 employés'], status: 'En attente' },
-]
+import { fetchJoinRequests, putJoinStatus } from '../../../api/admin'
 
+// Ajoute bien "export default" ici au début de ta fonction
 export default function AdminJoinRequests() {
   const colors = palette.colors
-  const [requests, setRequests] = useState(mockJoinRequests)
-  const [selectedRequest, setSelectedRequest] = useState(null)
+  const [requests, setRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const getStatusStyle = (status) => {
-    if (status === 'Acceptée' || status === 'Validée') {
-      return { backgroundColor: colors.status.successLight, color: colors.text.primary }
+  const loadJoinRequests = async () => {
+    try {
+      setLoading(true)
+      const data = await fetchJoinRequests()
+      if (data.success) {
+        setRequests(data.requests)
+      }
+    } catch (err) {
+      setError("Impossible de charger les demandes d'inscription.")
+    } finally {
+      setLoading(false)
     }
-
-    if (status === 'Refusée') {
-      return { backgroundColor: colors.status.errorLight, color: colors.text.primary }
-    }
-
-    return { backgroundColor: colors.status.warningLight, color: colors.text.primary }
   }
 
-  const selectedRequestDetails = useMemo(() => {
-    if (!selectedRequest) return []
-    return [
-      `Statut actuel: ${selectedRequest.status}`,
-      `Entreprise: ${selectedRequest.company}`,
-      `Demandeur: ${selectedRequest.applicant}`,
-      ...selectedRequest.details,
-    ]
-  }, [selectedRequest])
+  useEffect(() => {
+    loadJoinRequests()
+  }, [])
 
-  const updateStatus = (id, status) => {
-    setRequests((currentRequests) =>
-      currentRequests.map((request) => (request.id === id ? { ...request, status } : request)),
-    )
-    setSelectedRequest((currentRequest) => (currentRequest && currentRequest.id === id ? { ...currentRequest, status } : currentRequest))
+  const handleStatusUpdate = async (id, status) => {
+    try {
+      const response = await putJoinStatus(id, status)
+      if (response.success) {
+        // Rafraîchir la liste ou filtrer localement l'utilisateur traité
+        setRequests(prev => prev.filter(req => req.id !== id))
+      }
+    } catch (err) {
+      alert("Erreur lors du traitement de l'inscription.")
+    }
   }
 
   return (
     <DashboardLayout>
-      <div className="mb-8 flex items-center justify-between gap-4">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm font-black uppercase tracking-[0.22em]" style={{ color: colors.status.warning }}>Centre admin</p>
-          <h2 className="mt-2 text-3xl font-black" style={{ color: colors.text.primary }}>Demandes d'inscription (Employeurs)</h2>
+          <h2 className="mt-2 text-3xl font-black" style={{ color: colors.text.primary }}>Demandes d'adhésion</h2>
           <p className="mt-3 max-w-3xl" style={{ color: colors.text.secondary }}>
-            Liste des entreprises qui demandent à rejoindre la plateforme pour publier des offres d'emploi ou employer du personnel.
+            Validez ou refusez les demandes d'inscription des nouveaux prestataires et techniciens.
           </p>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <Link to="/dashboard/admin" className="rounded-xl px-4 py-2 font-semibold" style={{ backgroundColor: colors.primary.light, color: colors.primary.main }}>
-            Retour au tableau
-          </Link>
-          <Link to="/dashboard/admin/profiles" className="rounded-xl px-4 py-2 font-semibold" style={{ backgroundColor: colors.secondary.light, color: colors.secondary.hover }}>
-            Profils
-          </Link>
+        <Link to="/dashboard/admin" className="rounded-xl px-4 py-2 font-semibold shadow-sm" style={{ backgroundColor: colors.primary.light, color: colors.primary.main }}>
+          Retour au tableau
+        </Link>
+      </div>
+
+      {loading ? (
+        <div className="flex h-48 flex-col items-center justify-center gap-2">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" style={{ borderColor: `${colors.primary.main} transparent transparent transparent` }}></div>
+          <p className="text-sm font-medium" style={{ color: colors.text.secondary }}>Chargement des requêtes...</p>
         </div>
-      </div>
-
-      <div className="grid gap-4">
-        {requests.map((request) => (
-          <div key={request.id} className="rounded-[2rem] border p-5 shadow-sm2" style={{ backgroundColor: colors.surface, borderColor: colors.borders.border }}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="text-lg font-bold" style={{ color: colors.text.primary }}>{request.company}</div>
-                <div className="mt-1 text-sm" style={{ color: colors.text.secondary }}>{request.meta}</div>
-                <div className="mt-2 text-sm font-semibold" style={{ color: colors.primary.main }}>Statut actuel: {request.status}</div>
+      ) : error ? (
+        <div className="rounded-xl border p-4 text-sm" style={{ borderColor: colors.status.errorLight, backgroundColor: colors.status.errorLight, color: colors.text.primary }}>
+          {error}
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {requests.length === 0 ? (
+            <p className="text-sm" style={{ color: colors.text.secondary }}>Aucune demande d'inscription en attente.</p>
+          ) : (
+            requests.map((request) => (
+              <div key={request.id} className="rounded-[2rem] border p-5 shadow-sm2" style={{ backgroundColor: colors.surface, borderColor: colors.borders.border }}>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <div className="text-lg font-bold" style={{ color: colors.text.primary }}>
+                      {request.prenom} {request.nom}
+                    </div>
+                    <div className="mt-1 text-sm space-y-1" style={{ color: colors.text.secondary }}>
+                      <div>Email : {request.email}</div>
+                      <div>Téléphone : {request.telephone || 'Non renseigné'}</div>
+                      <div className="font-semibold" style={{ color: colors.primary.main }}>Rôle demandé : {request.role}</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button type="button" onClick={() => handleStatusUpdate(request.id, 'accepte')} className="rounded-xl px-4 py-2 text-sm font-semibold shadow-sm" style={{ backgroundColor: colors.status.successLight, color: colors.text.primary }}>
+                      Accepter
+                    </button>
+                    <button type="button" onClick={() => handleStatusUpdate(request.id, 'refuse')} className="rounded-xl px-4 py-2 text-sm font-semibold shadow-sm" style={{ backgroundColor: colors.status.errorLight, color: colors.text.primary }}>
+                      Refuser
+                    </button>
+                  </div>
+                </div>
               </div>
-              <span className="rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.18em]" style={getStatusStyle(request.status)}>
-                {request.status}
-              </span>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <button type="button" onClick={() => setSelectedRequest(request)} className="rounded-xl px-4 py-2 text-sm font-semibold" style={{ backgroundColor: colors.primary.light, color: colors.primary.main }}>
-                Afficher les données
-              </button>
-              <button type="button" onClick={() => updateStatus(request.id, 'Acceptée')} className="rounded-xl px-4 py-2 text-sm font-semibold" style={{ backgroundColor: colors.status.successLight, color: colors.text.primary }}>
-                Accepter
-              </button>
-              <button type="button" onClick={() => updateStatus(request.id, 'Refusée')} className="rounded-xl px-4 py-2 text-sm font-semibold" style={{ backgroundColor: colors.status.errorLight, color: colors.text.primary }}>
-                Refuser
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <Modal open={Boolean(selectedRequest)} onClose={() => setSelectedRequest(null)}>
-        {selectedRequest && (
-          <div>
-            <h3 className="text-2xl font-black" style={{ color: colors.text.primary }}>{selectedRequest.company}</h3>
-            <p className="mt-2 text-sm" style={{ color: colors.text.secondary }}>{selectedRequest.meta}</p>
-            <div className="mt-4 rounded-2xl border p-4" style={{ backgroundColor: colors.background, borderColor: colors.borders.border }}>
-              <div className="text-sm font-black uppercase tracking-[0.18em]" style={{ color: colors.text.muted }}>Données</div>
-              <ul className="mt-3 space-y-2 text-sm" style={{ color: colors.text.secondary }}>
-                {selectedRequestDetails.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-              <div className="mt-4 flex gap-3">
-                <button type="button" onClick={() => updateStatus(selectedRequest.id, 'Acceptée')} className="rounded-xl px-4 py-2 text-sm font-semibold" style={{ backgroundColor: colors.status.successLight, color: colors.text.primary }}>
-                  Accepter
-                </button>
-                <button type="button" onClick={() => updateStatus(selectedRequest.id, 'Refusée')} className="rounded-xl px-4 py-2 text-sm font-semibold" style={{ backgroundColor: colors.status.errorLight, color: colors.text.primary }}>
-                  Refuser
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
+            ))
+          )}
+        </div>
+      )}
     </DashboardLayout>
   )
 }

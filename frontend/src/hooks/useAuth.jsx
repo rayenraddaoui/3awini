@@ -1,23 +1,25 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useState } from 'react'
+
+// Les fonctions d'authentification viennent du fichier auth
+import { loginUser, registerUser, logoutUser } from '../api/auth'
+
+// La fonction de mise à jour du profil vient du fichier profile
+import { updateUserProfile } from '../api/profile' 
 
 const AUTH_USER_KEY = '3awini.auth.user'
-const AUTH_USERS_KEY = '3awini.auth.users'
 
-const DEFAULT_USERS = [
-  { id: 'admin-demo', name: 'Admin', email: 'admin@3awini.local', password: 'admin123', role: 'admin' },
-  { id: 'client-demo', name: 'Client', email: 'client@3awini.local', password: 'client123', role: 'client' },
-  { id: 'technician-demo', name: 'Technicien', email: 'tech@3awini.local', password: 'tech123', role: 'technician' },
-]
-
+// Création du contexte avec des valeurs par défaut pour l'auto-complétion
 const AuthContext = createContext({
   user: null,
-  users: DEFAULT_USERS,
-  login: () => ({ ok: false }),
-  register: () => ({ ok: false }),
-  logout: () => {},
+  login: async () => ({ ok: false }),
+  register: async () => ({ ok: false }),
+  updateProfile: async () => ({ ok: false }),
+  logout: async () => {},
+  loading: false
 })
 
+// Helpers pour interagir sainement avec le localStorage pour l'UI
 function readStorage(key, fallback) {
   try {
     const value = window.localStorage.getItem(key)
@@ -29,126 +31,117 @@ function readStorage(key, fallback) {
 
 function writeStorage(key, value) {
   try {
-    window.localStorage.setItem(key, JSON.stringify(value))
+    if (value === null) {
+      window.localStorage.removeItem(key)
+    } else {
+      window.localStorage.setItem(key, JSON.stringify(value))
+    }
   } catch {
-    // Ignore storage failures so auth still works in memory.
+    // Ignore les échecs d'écriture (ex: mode incognito)
   }
-}
-
-function sanitizeUser(user) {
-  if (!user) {
-    return null
-  }
-
-  const safeUser = { ...user }
-  delete safeUser.password
-  return safeUser
 }
 
 export function AuthProvider({ children }) {
-  const [users, setUsers] = useState(() => readStorage(AUTH_USERS_KEY, DEFAULT_USERS))
-  const [user, setUser] = useState(() => sanitizeUser(readStorage(AUTH_USER_KEY, null)))
+  const [user, setUser] = useState(() => readStorage(AUTH_USER_KEY, null))
+  const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    writeStorage(AUTH_USERS_KEY, users)
-  }, [users])
+  // ==========================================
+  // 1. CONNEXION (LOGIN)
+  // ==========================================
+  const login = async ({ email, password }) => {
+    setLoading(true)
+    try {
+      const data = await loginUser({ email, password })
+      const loggedUser = data.user
 
-  useEffect(() => {
-    writeStorage(AUTH_USER_KEY, user)
-  }, [user])
+      // Persistance locale de l'UI utilisateur (sans token !)
+      setUser(loggedUser)
+      writeStorage(AUTH_USER_KEY, loggedUser)
 
-  const login = ({ email, password }) => {
-    const normalizedEmail = String(email || '').trim().toLowerCase()
-    const matchedUser = users.find((entry) => entry.email.trim().toLowerCase() === normalizedEmail && entry.password === password)
-
-    if (!matchedUser) {
-      return { ok: false, message: 'Identifiants invalides. Vérifiez votre email et votre mot de passe.' }
+      return { ok: true, user: loggedUser }
+    } catch (error) {
+      console.error('Login error:', error)
+      return { 
+        ok: false, 
+        message: error.response?.data?.message || 'Identifiants incorrects ou erreur serveur.' 
+      }
+    } finally {
+      setLoading(false)
     }
-
-    setUser(sanitizeUser(matchedUser))
-    return { ok: true, user: sanitizeUser(matchedUser) }
   }
 
-  const register = ({ name, email, password, role }) => {
-    const trimmedName = String(name || '').trim()
-    const normalizedEmail = String(email || '').trim().toLowerCase()
-    const normalizedRole = ['admin', 'client', 'technician'].includes(role) ? role : 'client'
-
-    if (!trimmedName || !normalizedEmail || !password) {
-      return { ok: false, message: 'Veuillez remplir le nom, l’email et le mot de passe.' }
+  // ==========================================
+  // 2. INSCRIPTION (REGISTER)
+  // ==========================================
+  const register = async (userData) => {
+    setLoading(true)
+    try {
+      const data = await registerUser(userData)
+      const createdUser = data.user
+      
+      return { ok: true, user: createdUser }
+    } catch (error) {
+      console.error('Register error:', error)
+      return { 
+        ok: false, 
+        message: error.response?.data?.message || 'Erreur lors de l’inscription.' 
+      }
+    } finally {
+      setLoading(false)
     }
-
-    if (users.some((entry) => entry.email.trim().toLowerCase() === normalizedEmail)) {
-      return { ok: false, message: 'Cet email est déjà utilisé.' }
-    }
-
-    const createdUser = {
-      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`,
-      name: trimmedName,
-      email: normalizedEmail,
-      password,
-      role: normalizedRole,
-    }
-
-    setUsers((currentUsers) => [...currentUsers, createdUser])
-    setUser(sanitizeUser(createdUser))
-
-    return { ok: true, user: sanitizeUser(createdUser) }
   }
 
-  const updateProfile = (updates) => {
-    if (!user) {
-      return { ok: false, message: 'Aucun utilisateur connecté.' }
+  // ==========================================
+  // 3. MISE À JOUR DU PROFIL
+  // ==========================================
+  const updateProfile = async (updatedData) => {
+    setLoading(true)
+    try {
+      const data = await updateUserProfile(updatedData)
+      const updatedUser = data.user
+
+      // Met à jour l'état et le stockage local immédiatement pour l'interface
+      setUser(updatedUser)
+      writeStorage(AUTH_USER_KEY, updatedUser)
+
+      return { ok: true, user: updatedUser }
+    } catch (error) {
+      console.error('Update profile error:', error)
+      return {
+        ok: false,
+        message: error.response?.data?.message || 'Impossible de sauvegarder les modifications.'
+      }
+    } finally {
+      setLoading(false)
     }
-
-    const nextName = String(updates?.name ?? user.name ?? '').trim()
-    const nextEmail = String(updates?.email ?? user.email ?? '').trim().toLowerCase()
-    const nextPhone = String(updates?.phone ?? user.phone ?? '').trim()
-    const nextAddress = String(updates?.address ?? user.address ?? '').trim()
-
-    if (!nextName || !nextEmail) {
-      return { ok: false, message: 'Le nom et l’email sont obligatoires.' }
-    }
-
-    const emailTakenByAnotherUser = users.some(
-      (entry) => entry.email.trim().toLowerCase() === nextEmail && entry.id !== user.id,
-    )
-
-    if (emailTakenByAnotherUser) {
-      return { ok: false, message: 'Cet email est déjà utilisé.' }
-    }
-
-    const nextUser = sanitizeUser({
-      ...user,
-      name: nextName,
-      email: nextEmail,
-      phone: nextPhone,
-      address: nextAddress,
-    })
-
-    setUsers((currentUsers) =>
-      currentUsers.map((entry) =>
-        entry.id === user.id
-          ? {
-              ...entry,
-              name: nextName,
-              email: nextEmail,
-              phone: nextPhone,
-              address: nextAddress,
-            }
-          : entry,
-      ),
-    )
-    setUser(nextUser)
-
-    return { ok: true, user: nextUser }
   }
 
-  const logout = () => setUser(null)
+  // ==========================================
+  // 4. DÉCONNEXION (LOGOUT)
+  // ==========================================
+  const logout = async () => {
+    setLoading(true)
+    try {
+      // Appelle le backend pour invalider et supprimer le cookie HTTP-only
+      await logoutUser()
+    } catch (error) {
+      console.error('Logout backend error:', error)
+    } finally {
+      // Nettoyage complet du frontend, quoi qu'il arrive
+      setUser(null)
+      writeStorage(AUTH_USER_KEY, null)
+      setLoading(false)
+    }
+  }
 
-  return <AuthContext.Provider value={{ user, users, login, register, updateProfile, logout }}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{ user, login, register, updateProfile, logout, loading }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
+// Custom Hook pour consommer le contexte facilement dans tes composants
 export function useAuth() {
   return useContext(AuthContext)
 }
